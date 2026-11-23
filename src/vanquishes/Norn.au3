@@ -1,0 +1,250 @@
+#include '../LoadWaitHelpers.au3'
+#CS ===========================================================================
+; Author: An anonymous fan of Dhuum
+; Contributor: Gahais
+; Copyright 2025 caustic-kronos
+;
+; Licensed under the Apache License, Version 2.0 (the 'License');
+; you may not use this file except in compliance with the License.
+; You may obtain a copy of the License at
+; http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an 'AS IS' BASIS,
+; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+; See the License for the specific language governing permissions and
+; limitations under the License.
+#CE ===========================================================================
+
+#include-once
+#include '../../lib/GWA2_ID_Maps.au3'
+#include '../../lib/GWA2_ID.au3'
+#include '../../lib/GWA2.au3'
+#include '../../lib/Utils-Agents.au3'
+#include '../../lib/Utils-Console.au3'
+#include '../../lib/Utils-Storage.au3'
+#include '../../lib/Utils.au3'
+
+; ==== Constants ====
+Global Const $NORN_FARM_INFORMATIONS = 'Norn title farm, bring solid heroes composition'
+; Average duration ~ 45m
+Global Const $NORN_FARM_DURATION = 45 * 60 * 1000
+
+Global $norn_farm_setup = False
+
+
+;~ Main loop for the norn faction farm
+Func NornTitleFarm()
+	If Not $norn_farm_setup Then NornTitleFarmSetup()
+
+	If GoToVarajarFells() == $FAIL Then Return $FAIL
+	AdlibRegister('TrackPartyStatus', 10000)
+	Local $result = VanquishVarajarFells()
+	AdlibUnRegister('TrackPartyStatus')
+	Return $result
+EndFunc
+
+
+Func NornTitleFarmSetup()
+	Info('Setting up farm')
+	RobustTravelToOutpost($ID_OLAFSTEAD, $district_name)
+	SetDisplayedTitle($ID_NORN_TITLE)
+	SwitchMode($ID_HARD_MODE)
+	$norn_farm_setup = True
+	Info('Preparations complete')
+	Return $SUCCESS
+EndFunc
+
+
+;~ Move out of outpost into the Varajar Fells
+Func GoToVarajarFells()
+	RobustTravelToOutpost($ID_OLAFSTEAD, $district_name)
+	Local $attempts = 0
+	While GetMapID() <> $ID_VARAJAR_FELLS
+		If Not MapEntryAttemptAllowed($attempts, 'Varajar Fells') Then Return $FAIL
+		Info('Moving to the Varajar Fells')
+		MoveTo(222, 756)
+		Move(-1435, 1217)
+		RandomSleep(5000)
+		RobustWaitMapLoading($ID_VARAJAR_FELLS, 10000, 2000)
+	WEnd
+	; v30: the map ID switches before the load completes - act only once it is fully loaded
+	If Not ConfirmMapReady($ID_VARAJAR_FELLS) Then Return $FAIL
+	Return $SUCCESS
+EndFunc
+
+
+;~ Cleaning Varajar Fells function
+Func VanquishVarajarFells()
+	If GetMapID() <> $ID_VARAJAR_FELLS Then Return $FAIL
+
+	If IsHardmodeEnabled() Then UseConset()
+	UseSummoningStone()
+	; 43 groups to vanquish + 6 movements
+	Local Static $foes[][] = [ _
+		_ ; blessing
+		[-5278,		-5771,	'Berserker',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-5456,		-7921,	'Berserker',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-8793,		-5837,	'Berserker',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-14092,	-9662,	'Vaettir and Berserker',	$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-17260,	-7906,	'Vaettir and Berserker',	$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-21964,	-12877,	'Jotun',					$RANGE_SPIRIT				], _
+		_ ; blessing
+		[-22275,	-12462,	'Moving',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-21671,	-2163,	'Berserker',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-19592,	772,	'Berserker',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-13795,	-751,	'Berserker',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-17012,	-5376,	'Berserker',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		_ ; blessing
+		[-8351,		-2633,	'Berserker',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-4362,		-1610,	'Moving',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-4316,		4033,	'Lake',						$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-8809,		5639,	'Lake',						$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-14916,	2475,	'Lake',						$WIDE_PLAYER_AGGRO_RANGE	], _
+		_ ; blessing
+		[-16051,	6492,	'Elemental',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-16934,	11145,	'Elemental',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-19378,	14555,	'Elemental',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		_ ; blessing
+		[-15932,	9386,	'',							$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-13777,	8097,	'Moving',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-4729,		15385,	'Lake',						$WIDE_PLAYER_AGGRO_RANGE	], _
+		_ ; blessing
+		[-1810,		4679,	'Modniir',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-6911,		5240,	'Moving',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-15471,	6384,	'Boss',						$WIDE_PLAYER_AGGRO_RANGE	], _
+		[-411,		5874,	'Moving',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[2859,		3982,	'Modniir',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[4909,		-4259,	'Ice Imp',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[7514,		-6587,	'Ice Imp',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[3800,		-6182,	'Berserker',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[7755,		-11467,	'Berserker',				$WIDE_PLAYER_AGGRO_RANGE	], _
+		[15403,		-4243,	'Elementals and Griffins',	$WIDE_PLAYER_AGGRO_RANGE	], _
+		[21597,		-6798,	'Elementals and Griffins',	$WIDE_PLAYER_AGGRO_RANGE	], _
+		_ ; blessing
+		[22883,		-4248,	'',							$WIDE_PLAYER_AGGRO_RANGE	], _
+		[18606,		-1894,	'',							$WIDE_PLAYER_AGGRO_RANGE	], _
+		[14969,		-4048,	'',							$WIDE_PLAYER_AGGRO_RANGE	], _
+		[13599,		-7339,	'',							$WIDE_PLAYER_AGGRO_RANGE	], _
+		[10056,		-4967,	'Ice Imp',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[10147,		-1630,	'Ice Imp',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[8963,		4043,	'Ice Imp',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		_ ; blessing
+		[15576,		7156,	'',							$WIDE_PLAYER_AGGRO_RANGE	], _
+		[22838,		7914,	'Berserker',				$RANGE_SPIRIT				], _
+		_ ; blessing
+		[18067,		8766,	'Moving',					$WIDE_PLAYER_AGGRO_RANGE	], _
+		[13311,		11917,	'Modniir and Elemental',	$WIDE_PLAYER_AGGRO_RANGE	], _
+		_ ; blessing
+		[11126,		10443,	'Modniir and Elemental',	$WIDE_PLAYER_AGGRO_RANGE	], _
+		[5575,		4696,	'Modniir and Elemental',	$RANGE_SPIRIT				], _
+		[-503,		9182,	'Modniir and Elemental',	$WIDE_PLAYER_AGGRO_RANGE	], _
+		[1582,		15275,	'Modniir and Elemental',	$RANGE_SPIRIT				], _
+		[7857,		10409,	'Modniir and Elemental',	$RANGE_SPIRIT				] _
+	]
+
+	MoveTo(-2484, 118)
+	MoveTo(-3059, -419)
+	MoveTo(-3301, -2008)
+	MoveTo(-2034, -4512)
+
+	Info('Taking Blessing')
+	GoToNPC(GetNearestNPCToCoords(-2034, -4512))
+	Sleep(1000)
+	Dialog(0x84)
+	Sleep(1000)
+
+	For $i = 0 To 5
+		If CheckStuck($foes[$i][2], 1.5 * $NORN_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($foes[$i][0], $foes[$i][1], $foes[$i][2], $foes[$i][3]) == $FAIL Then Return $FAIL
+	Next
+
+	Info('Taking Blessing')
+	GoToNPC(GetNearestNPCToCoords(-25274, -11970))
+	Sleep(1000)
+
+	For $i = 6 To 10
+		If CheckStuck($foes[$i][2], 1.5 * $NORN_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($foes[$i][0], $foes[$i][1], $foes[$i][2], $foes[$i][3]) == $FAIL Then Return $FAIL
+	Next
+
+	Info('Taking Blessing')
+	GoToNPC(GetNearestNPCToCoords(-12071, -4274))
+	Sleep(1000)
+
+	For $i = 11 To 15
+		If CheckStuck($foes[$i][2], 1.5 * $NORN_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($foes[$i][0], $foes[$i][1], $foes[$i][2], $foes[$i][3]) == $FAIL Then Return $FAIL
+	Next
+
+	Info('Taking Blessing')
+	GoToNPC(GetNearestNPCToCoords(-11282, 5466))
+	Sleep(1000)
+
+	For $i = 16 To 18
+		If CheckStuck($foes[$i][2], 1.5 * $NORN_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($foes[$i][0], $foes[$i][1], $foes[$i][2], $foes[$i][3]) == $FAIL Then Return $FAIL
+	Next
+
+	Info('Taking Blessing')
+	GoToNPC(GetNearestNPCToCoords(-22751, 14163))
+	Sleep(1000)
+
+	For $i = 19 To 21
+		If CheckStuck($foes[$i][2], 1.5 * $NORN_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($foes[$i][0], $foes[$i][1], $foes[$i][2], $foes[$i][3]) == $FAIL Then Return $FAIL
+	Next
+
+	Info('Taking Blessing')
+	GoToNPC(GetNearestNPCToCoords(-2290, 14879))
+	Sleep(1000)
+
+	For $i = 22 To 32
+		If CheckStuck($foes[$i][2], 1.5 * $NORN_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($foes[$i][0], $foes[$i][1], $foes[$i][2], $foes[$i][3]) == $FAIL Then Return $FAIL
+	Next
+
+	Info('Taking Blessing')
+	GoToNPC(GetNearestNPCToCoords(24522, -6532))
+	Sleep(1000)
+
+	For $i = 33 To 39
+		If CheckStuck($foes[$i][2], 1.5 * $NORN_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($foes[$i][0], $foes[$i][1], $foes[$i][2], $foes[$i][3]) == $FAIL Then Return $FAIL
+	Next
+
+	Info('Taking Blessing')
+	GoToNPC(GetNearestNPCToCoords(8963, 4043))
+	Sleep(1000)
+
+	For $i = 40 To 41
+		If CheckStuck($foes[$i][2], 1.5 * $NORN_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($foes[$i][0], $foes[$i][1], $foes[$i][2], $foes[$i][3]) == $FAIL Then Return $FAIL
+	Next
+
+	Info('Taking Blessing')
+	GoToNPC(GetNearestNPCToCoords(22961, 12757))
+	Sleep(1000)
+
+	For $i = 42 To 43
+		If CheckStuck($foes[$i][2], 1.5 * $NORN_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($foes[$i][0], $foes[$i][1], $foes[$i][2], $foes[$i][3]) == $FAIL Then Return $FAIL
+	Next
+
+	Info('Taking Blessing')
+	GoToNPC(GetNearestNPCToCoords(13714, 14520))
+	Sleep(1000)
+
+	For $i = 44 To 48
+		If CheckStuck($foes[$i][2], 1.5 * $NORN_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($foes[$i][0], $foes[$i][1], $foes[$i][2], $foes[$i][3]) == $FAIL Then Return $FAIL
+	Next
+
+	If Not GetAreaVanquished() Then
+		Error('The map has not been completely vanquished.')
+		Return $FAIL
+	Else
+		Info('Map has been fully vanquished.')
+		Return $SUCCESS
+	EndIf
+EndFunc

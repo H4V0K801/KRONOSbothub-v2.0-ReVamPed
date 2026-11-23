@@ -1,0 +1,78 @@
+v38.12-bridge (2026-11-23): bridge build (v38.9.1-bridgeA: GWBridge reads + 0.10 s sort) merged with v38.11 (chest, About, AMG), tidier top-right cluster, clean public slate (only Default configs + Masterloot, no pre-saved builds, no logs) - see CHANGELOG.md v38.12-bridge.
+v38.9.1-bridgeA (2026-11-23): bridge test build plus Storage Sort minimum lowered from 0.66 s to 0.10 s per move.
+v38.9-bridgeA (2026-11-23): TEST BUILD of v38.9 with GWBridge (reads only; commands stay classic GWA2). Separate folder from the live bot. See bridge/TESTING.md.
+
+Previous commit reference
+Hash:   ca18c0c
+Author: kronos
+Date:   2026-07-26 22:10:34 +0200
+Tag:    No tags
+
+v10-improved (2026-11-09)
+Hardening release on top of v10: see CHANGELOG.md and ANALYSIS.md.
+Item & mod audit (2026-11-09): fixed salvage slots for Extract upgrades only, upgrade-id kind check, label fixes - see ANALYSIS.md section 7.
+Perfect-only extraction (2026-11-09): only max-roll / Superior options under Extract upgrades only, value-checked matching, load-time pruning - see ANALYSIS.md section 8.
+Perfect-only Keep components (2026-11-09): Keep components pruned to perfect options, max-roll keep matching, one load-time warning - see ANALYSIS.md section 9.
+Tools tab Open Storage (2026-11-09): OpenXunlaiWindow behind attach/run/outpost guards; recommendations list - see ANALYSIS.md sections 10-11.
+v15 (2026-11-09): Options Open Storage guarded, Reset session stats resets counters, PrintItemInformationsAt helper, TESTING.md - see ANALYSIS.md section 12.
+
+v16 (2026-11-09): AMG Loot.json added; JSON <-> code <-> GUI <-> farm scripts alignment checker and fixes (rare material names, Lockpicks / Other trophies options, team defaults, complete farm configs) - see ANALYSIS.md section 13.
+
+v17 (2026-11-09): both Open Storage buttons back to the original v10 behaviour (town, explorable, while running); only not-attached / client-closed are logged; low-lockpicks warning removed (it printed the bag number); /stuck log throttled - see ANALYSIS.md section 14.
+
+v18 (2026-11-09): skill rotation audit - Deadly Paradox then Shadow Form with no gap, 20-energy gate, refresh window from the game's effect timer, Shroud of Distress energy priority, pre-emptive "I Am Unstoppable!" on Giant Stomp, skill slots read from the bar - see ANALYSIS.md section 15.
+
+v19 (2026-11-09): Rune of Major Vigor - keep, store (new Store items.Runes.Major Vigor) and extract restored as the single exception to the perfect-only rule - see ANALYSIS.md section 16.
+
+v20 (2026-11-09): Shadow Form / Deadly Paradox timing back to each farm's pre-v18 logic (DP-first, 20-energy DP gate, slot detection, Shroud and IAU logic kept); IAU also reacts to Wild Blow and Bull's Strike (Titans) - see ANALYSIS.md section 17.
+
+v21 (2026-11-10): IAU also on Irresistible Blow (356), the Burning Titans' knockdown follow-up after Wild Blow - see ANALYSIS.md section 18. Nothing else changed.
+
+v22 (2026-11-10): Options checkbox renamed "Extract selected components before selling" and wired up (extract in town before material salvage/selling, buys an Expert Salvage Kit if none, cap 5 per pass, held items not salvaged/sold); Tools button renamed "Manual Selected Component Extract" - see ANALYSIS.md section 19.
+
+v23 (2026-11-10): Main tab Items panel - one scrollable list (Elite Tomes, Titles + Lockpicks, Exchangeables, Consumable Materials, Sweets, Party, Alcohol) with inventory + Xunlai storage totals, storage read in outposts and cached per character (* = cached); Informations unchanged - see ANALYSIS.md section 20.
+
+v24 (2026-11-10): Store items > Mods (loose upgrade components to storage); "pause after 10 failed runs" removed; stuck watchdog (5 min without progress -> map back, run failed, farm setup from scratch, stats kept); Tools > Empty Tab (I..XIII, Anniversary); Options button reads Disable/Enable Graphics - see ANALYSIS.md section 21.
+
+v25 (2026-11-10): Inventory > Store items > Components > Mods / Inscriptions / Insignias / Runes (the 447 perfect-only Keep/Extract entries + Major Vigor), stored right after the extraction and before any salvage or sale (storage full = warn and continue); v24 Store items.Mods and v19 Store items.Runes.Major Vigor migrated into it; keys added to older loot files at load; tree opens on Components; AMG Loot.json ticks = his Keep/Extract ticks - see ANALYSIS.md section 22.
+
+v26 (2026-11-10): slaying suffixes ("+20% damage vs creatures") now matched (species read item-wide like Py4GW) for Keep / Extract / hold / Store Components; old-school weapons no longer kept at 15-19% (hardcoded unaligned OS list replaced by the checked Keep components lists with max-roll matching) - see ANALYSIS.md section 23.
+
+v27 (2026-11-10): old-school weapons no longer kept for inherent mods (15^50, +15% enchanted/stance, zealous/vampiric strength, rare-skin "perfect mods" rules removed); the only OS auto-keeps are q9 + inherent Energy +5 and wand/focus q9-q10 halving casting time AND skill recharge (20% of the item attribute or 10% all spells, any mix; single never; staves never); Zealous/Vampiric prefixes only through the ticked lists - see ANALYSIS.md section 24.
+
+v28 (2026-11-10): BotsHub window/taskbar icon = AMG's inverted helmet (assets/icon/BotsHub.ico + .png; GUISetIcon guarded by FileExists; #AutoIt3Wrapper_Icon for compiled builds); #NoTrayIcon unchanged.
+
+v29 (2026-11-10): Inventory 'Keep components' removed (tree, shipped loot files, keep code); old loot files with it load silently and it is not saved back; weapons and armor are no longer kept whole for their mods (extract via Extract upgrades only + hold, store loose components, then sell); no Keep-components Extract fallback; Store items > Components seeded from Extract upgrades only - see ANALYSIS.md section 25.
+
+v30 (2026-11-10): map load guard - WaitMapReady (no loading screen, map ID/type, player agent + position, agents, party, 3 stable samples, settle; timeout = clean failure) behind WaitMapLoading, the travel helpers, all 26 portal loops and the FoW/UW/Urgoz/Deep entries; stuck watchdog 2 min, covering the town phases too, inventory changes count as progress - see ANALYSIS.md section 26.
+
+v31 (2026-11-10): Main tab Items panel Session column (net gain since start per character; baseline on the first complete outpost read with the map loaded and live storage; moves between inventory and storage net 0; rebaseline on character change); dark GUI theme with white text and an accent palette (gold titles, blue values, green/red session, coloured log levels), all colours in lib/BotsHub-Theme-Colors.au3 - see ANALYSIS.md section 27.
+
+v32 (2026-11-10): Informations labels no longer cut off ('Time per run:', 'Obsidian Shards:' wrapped in v10's 65/85 px cells; cells fitted to the text, same rows/texts/order); pre-existing clipped captions on Options/Team/Inventory fixed; Wine font-metric fit test + clip scan - see ANALYSIS.md section 28.
+
+v33 (2026-11-11): Titles tab (before Farm infos, approved mockup): 8 reputation titles with progress to max / Session / Total, Zaishen chest title with keys needed (100,000 max, 5 per key) and keys owned, Sweet Tooth / Drunkard / Party Animal with points available in the inventory and Eat/Drink/Use buttons (only where points count, inventory only, never during a farm run); TITLES removed from the Items panel, Lockpicks last in Exchangeables; every value verified on wiki.guildwars.com - see ANALYSIS.md section 29.
+
+v33.1 (2026-11-12): Raptors W/N only - Dervish skill bar (actually a W/N code), Dervish slot constants and Dervish branches removed; non-warriors get the existing warning - see CHANGELOG.md v33.1.
+
+v34 (2026-11-12): Build Info tab (fills on farm select, no Load Script, merged notes, no links); Options renamed Setup; tab order Main, Setup, Build Info, Team, Inventory, Follower, Titles, Tools; 11 previously unshown bars, Gemstones hero order, E/Mo display-only PvX code, Monk Bonder description only — see CHANGELOG.md v34.
+
+v35 (2026-11-12): Setup tab cleanup (removed Auto-attach, Share Memory, Emergency Travel, kit combos, Salvage during run, Collect data GUI); Salvage into materials master switch defaults off; Inventory Extract Components rename with tick migration; Store-ticked items never sold; Default Loot fully unticked — see CHANGELOG.md v35.
+
+v36 (2026-11-12): Minor and Major runes restored under Extract Components and Store items > Components (87 leaves, unticked by default; older files gain them unticked at load; existing ticks unchanged) — see CHANGELOG.md v36.
+v36.1 (2026-11-12): Inventory tab branch order is now Pick up, Identify, Extract Components, Store items, Salvage, Sell, Buy (display-only, approved mockup); Show me the money inscription constant fixed to match Py4GW — see CHANGELOG.md v36.1.
+v36.2 (2026-11-12): Masterloot imported as conf/loot/Masterloot.json in the current tree (ticks carried over; Keep components listed, not remapped) — see CHANGELOG.md v36.2.
+v37 (2026-11-12): Tools button renamed "Manually extract selected components"; manual extract is not gated by the Setup auto-extract checkbox — see CHANGELOG.md v37.
+v37.1 (2026-11-12): Gold Req 8 and gold shields stay stored; other gold weapons with ticked perfect mods extract unless OS auto-keep; Masterloot unticks Store purple/gold armor so runes extract then store — see CHANGELOG.md v37.1.
+v37.2 (2026-11-14): Faster Inventory tree Load (batched redraw, no control-ID leak) and cached extract-leaf scan, invalidated on Load/Apply/tick change/run start — see CHANGELOG.md v37.2.
+v37.3 (2026-11-14): Inventory tree starts fully collapsed (top-level branches only) at startup and after Load — see CHANGELOG.md v37.3.
+v38 (2026-11-15): Tools > Sorting Inventory (Setup + Sort now), hidden Storage Setup, JSON layouts in conf/storage, optional after-store sort off by default — see CHANGELOG.md v38.
+v38.1 (2026-11-15): Tasca resigns back to the Granite Citadel instead of map-traveling; last-resort travel resets setup — see CHANGELOG.md v38.1.
+v38.2 (2026-11-21): Extract-leaf cache kept across looped town passes; store-protection cache reused until ticks change; faster cold leaf fill and in-place Load checkmarks — see CHANGELOG.md v38.2.
+v38.3 (2026-11-21): Inventory tree builds only the top-level branches at startup and on Load; each branch fills in the first time it is opened. Same options, ticks, Save/Load/Apply and bot behaviour — see CHANGELOG.md v38.3.
+v38.4 (2026-11-21): Follower tab Start button (same Start/Pause state as Main); follower matches the typed leader name exactly (case-sensitive, trimmed, self skipped, waits if not found); stale leader cleared; Bonder resets leader on map change — see CHANGELOG.md v38.4.
+v38.5 (2026-11-21): Tools Convert Gold to Lockpicks pays 1,200g at the Factions discount merchant, otherwise 1,500g; merchant list is logged if model 22751 is missing — see CHANGELOG.md v38.5.
+v38.6 (2026-11-21): Sorting Inventory manual only (Sort now; after-store and run-start sorts removed); strict pane-by-pane order; one confirmed move at a time, at least 0.66 s apart; Minipets type; Lunars to Festival items, Bird's Eye Compass and Stalker's Ration to Consumables; Material storage auto Materials + Rare materials (paced per-item deposit, Deposit All not available) — see CHANGELOG.md v38.6.
+v38.7 (2026-11-21): Follower can read other players' names (GetPlayerName uses the 80-byte player record); the log lists the party names it read — see CHANGELOG.md v38.7.
+v38.8 (2026-11-22): game window title is just the character name (empty name leaves the title unchanged) — see CHANGELOG.md v38.8.
+v38.9 (2026-11-23): faster memory reads, bag scans and effect/skillbar/party reads (same values); extraction pass tracks the inventory with strict re-reads — see CHANGELOG.md v38.9.
+v38.11 (2026-11-23): AMG's v38.9 build (auditor performance upgrades) plus the narrower template combo, Xunlai chest button, About tab and AMG rename (loot config AMG Loot.json) — see CHANGELOG.md v38.11.

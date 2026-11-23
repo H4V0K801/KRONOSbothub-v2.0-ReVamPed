@@ -1,0 +1,322 @@
+#CS ===========================================================================
+#include '../LoadWaitHelpers.au3'
+==================================================
+|	Fissure Of Woe Tower of Courage farm Bot	|
+|	Authors: Zaishen/RiflemanX/Monk Reborn		|
+|	Rewrite Author for BotsHub: Gahais			|
+==================================================
+; Copyright 2025 caustic-kronos
+;
+; Licensed under the Apache License, Version 2.0 (the 'License');
+; you may not use this file except in compliance with the License.
+; You may obtain a copy of the License at
+; http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an 'AS IS' BASIS,
+; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+; See the License for the specific language governing permissions and
+; limitations under the License.
+;
+; Fissure of Woe farm of Obsidian Shards in Tower of Courage location based on below article:
+https://gwpvx.fandom.com/wiki/Build:R/A_Whirling_Defense_Farmer
+; Run this farm bot as Ranger
+;
+#CE ===========================================================================
+
+#include-once
+#include '../../lib/GWA2_ID_Skills.au3'
+#include '../../lib/GWA2_ID.au3'
+#include '../../lib/GWA2.au3'
+#include '../../lib/Utils-Agents.au3'
+#include '../../lib/Utils-Console.au3'
+#include '../../lib/Utils-Storage.au3'
+#include '../../lib/Utils.au3'
+
+
+#Region Configuration
+; === Build ===
+Global Const $RA_FOW_TOC_FARMER_SKILLBAR = 'OgcTc5+8Z6Aims4ABC35uU4IuEA'
+Global Const $FOW_TOC_M_HERO_SKILLBAR = 'OwAS8YIH2Eg/LeyLiAAA'
+Global Const $FOW_TOC_P_HERO_SKILLBAR = 'OQijEqmMKODbe8OGAYiJx1YWMA'
+
+;~ Global Const $FOW_TOC_SHADOWFORM			= 1
+Global Const $FOW_TOC_SHROUD_OF_DISTRESS	= 1
+Global Const $FOW_TOC_I_AM_UNSTOPPABLE		= 2
+Global Const $FOW_TOC_UNSEEN_FURY			= 3
+;~ Global Const $FOW_TOC_DARK_ESCAPE		= 4
+Global Const $FOW_TOC_HEART_OF_SHADOW		= 4
+Global Const $FOW_TOC_DEATH_CHARGE			= 5
+Global Const $FOW_TOC_DWARVEN_STABILITY		= 6
+Global Const $FOW_TOC_WHIRLING_DEFENSE		= 7
+Global Const $FOW_TOC_MENTAL_BLOCK			= 8
+
+; Monk Hero Build
+Global Const $FOW_TOC_DIVINE_SPIRIT			= 1
+Global Const $FOW_TOC_BLESSED_AURA			= 2
+Global Const $FOW_TOC_WATCHFUL_SPIRIT		= 3
+Global Const $FOW_TOC_LIFE_BOND				= 4
+Global Const $FOW_TOC_BALTHAZARS_SPIRIT		= 5
+Global Const $FOW_TOC_SPELLBREAKER			= 6
+
+; Paragon Hero Build
+Global Const $FOW_TOC_VOCAL_WAS_SOGOLON		= 1
+Global Const $FOW_TOC_INCOMING				= 2
+Global Const $FOW_TOC_FALLBACK				= 3
+; Any idea on skill 4 ?
+Global Const $FOW_TOC_ENDURING_HARMONY		= 5
+Global Const $FOW_TOC_BRACE_YOURSELVES		= 6
+Global Const $FOW_TOC_STAND_YOUR_GROUND		= 7
+Global Const $FOW_TOC_BLADETURN_REFRAIN		= 8
+#EndRegion Configuration
+
+; ==== Constants ====
+Global Const $FOW_TOC_FARM_INFORMATIONS = 'For best results, have :' & @CRLF _
+	& '- Armor with HP/Energy runes and 5 blessed insignias (+50 armor when enchanted)' & @CRLF _
+	& '- Spear/Sword/Axe +5 energy of Enchanting (20% longer enchantments duration)' & @CRLF _
+	& '- A shield with the inscription Through Thick and Thin (+10 armor against piercing damage) and +45 health while enchanted or in stance' & @CRLF _
+	& '- At least 5th level in Deldrimor, Asura and Norn reputation ranks' & @CRLF _
+	& '- one monk and one paragon heroes' & @CRLF _
+	& ' ' & @CRLF _
+	& 'This bot farms obsidian shards in Tower of Courage in Fissure of Woe location in normal mode.' & @CRLF _
+	& 'Solo farm using Ranger based on below article' & @CRLF _
+	& 'https://gwpvx.fandom.com/wiki/Build:R/A_Whirling_Defense_Farmer' & @CRLF _
+	& 'If you have FoW scrolls then can set in GUI to enter FoW only through FoW scrolls and stop the bot when FoW scrolls run out' & @CRLF _
+	& 'It is recommended to run this farm mostly during weeks with Pantheon bonus active which gives free entry to FoW and UW' & @CRLF _
+	& 'Otherwise this farm bot can flush gold storage to 0. However income from obsidian shards and other loot should outweight the platinum cost' & @CRLF
+Global Const $FOW_TOC_FARM_DURATION = 3 * 60 * 1000
+Global Const $MAX_FOW_TOC_FARM_DURATION = 6 * 60 * 1000
+
+Global $fow_toc_move_options					= CloneMap($default_move_options)
+$fow_toc_move_options['movementRoutine']		= CastFowToCBuffs
+$fow_toc_move_options['moveVariance']			= 25
+$fow_toc_move_options['skillSlotHoS']			= $FOW_TOC_HEART_OF_SHADOW
+$fow_toc_move_options['skillSlotDeathsCharge']	= $FOW_TOC_DEATH_CHARGE
+
+;Global Const $FOW_TOC_MODELID_SHADOW_MESMER	= 2855
+;Global Const $FOW_TOC_MODELID_SHADOW_ELEMENTAL	= 2856
+;Global Const $FOW_TOC_MODELID_SHADOW_MONK		= 2857
+;Global Const $FOW_TOC_MODELID_SHADOW_WARRIOR	= 2858
+;Global Const $FOW_TOC_MODELID_SHADOW_BEAST		= 2860
+;Global Const $FOW_TOC_MODELID_SHADOW_RANGER	= 2859
+Global Const $FOW_TOC_MODELID_ABYSSAL			= 2861
+
+Global $fow_toc_farm_setup = False
+Global $fow_toc_30s_timer
+
+;~ Main method to farm Fissure of Woe - Tower of Courage
+Func FoWToCFarm()
+	If Not $fow_toc_farm_setup And SetupFoWToCFarm() == $FAIL Then Return $PAUSE
+
+	Local $result = EnterFissureOfWoe()
+	If $result <> $SUCCESS Then Return $result
+	$result = FoWToCFarmLoop()
+	If $result == $SUCCESS Then Info('Successfully cleared FoW Tower of Courage mobs')
+	If $result == $FAIL Then Info('Player died. Could not clear FoW Tower of Courage mobs')
+	TravelToFoWOutpost($district_name)
+	Return $result
+EndFunc
+
+
+;~ Fissure of Woe - Tower of Courage farm setup
+Func SetupFoWToCFarm()
+	Info('Setting up farm')
+	If TravelToFoWOutpost($district_name) == $FAIL Then Return $FAIL
+	SwitchMode($ID_NORMAL_MODE)
+	LeaveParty()
+	If AddHeroByProfession($ID_MONK, $ID_OGDEN) == $FAIL Then Return $FAIL
+	If AddHeroByProfession($ID_PARAGON, $ID_GENERAL_MORGAHN) == $FAIL Then Return $FAIL
+	If SetupPlayerFoWToCFarm() == $FAIL Then Return $FAIL
+	If SetupTeamFoWToCFarm() == $FAIL Then Return $FAIL
+	$fow_toc_farm_setup = True
+	Info('Preparations complete')
+	Return $SUCCESS
+EndFunc
+
+
+Func SetupPlayerFowToCFarm()
+	Info('Setting up player build skill bar')
+	If DllStructGetData(GetMyAgent(), 'Primary') == $ID_RANGER Then
+		LoadSkillTemplate($RA_FOW_TOC_FARMER_SKILLBAR)
+		RandomSleep(250)
+	Else
+		Warn('You need to run this farm bot as Ranger')
+		Return $FAIL
+	EndIf
+	Return $SUCCESS
+EndFunc
+
+
+Func SetupTeamFoWToCFarm()
+	Info('Setting up team build skill bars')
+	LoadSkillTemplate($FOW_TOC_M_HERO_SKILLBAR, 1)
+	LoadSkillTemplate($FOW_TOC_P_HERO_SKILLBAR, 2)
+	RandomSleep(250)
+	DisableAllHeroSkills(1)
+	DisableAllHeroSkills(2)
+	Return $SUCCESS
+EndFunc
+
+
+;~ Farm loop
+Func FoWToCFarmLoop()
+	$run_timer = TimerInit()
+
+	Info('Moving to initial spot')
+	HeroesCastFoWToCBuffs()
+	CastFowToCBuffs()
+	Move(-21100, -2400)
+	; Dark escape can be replaced by other skills like great dwarf armor to increase survivability at the cost of farm speed
+	;~ UseSkillEx($FOW_TOC_DARK_ESCAPE)
+	If MoveAndSurviveFoWToC(-21100, -2400) == $FAIL Then Return $FAIL
+	If MoveAndSurviveFoWToC(-17500, -2800) == $FAIL Then Return $FAIL
+	UseSkillEx($FOW_TOC_MENTAL_BLOCK)
+	If MoveAndSurviveFoWToC(-16500, -3100) == $FAIL Then Return $FAIL
+	UseSkillEx($FOW_TOC_UNSEEN_FURY)
+
+	Info('Balling abyssals')
+	If MoveAndSurviveFoWToC(-15250, -3600) == $FAIL Then Return $FAIL
+	If MoveAndSurviveFoWToC(-14450, -3500) == $FAIL Then Return $FAIL
+	If MoveAndSurviveFoWToC(-14150, -2950) == $FAIL Then Return $FAIL
+	If MoveAndSurviveFoWToC(-13600, -1800) == $FAIL Then Return $FAIL
+	UseSkillEx($FOW_TOC_WHIRLING_DEFENSE)
+	Local $whirlingDefenseTimer = TimerInit()
+	If MoveAndSurviveFoWToC(-14200, -700) == $FAIL Then Return $FAIL
+	If MoveAndSurviveFoWToC(-14650, -200) == $FAIL Then Return $FAIL
+
+	Info('Killing abyssals')
+	Local $killTimer = TimerInit()
+	Local $foesCount = 999
+	While $foesCount > 0
+		CastFowToCBuffs()
+		Sleep(500)
+		; If only 2 abyssal left we can finish them by hand
+		If $foesCount > 0 And $foesCount < 3 Then
+			Local $foe = GetNearestEnemyToAgent(GetMyAgent(), $RANGE_SPELLCAST)
+			If DllStructGetData($foe, 'HealthPercent') < 0.3 Then Attack($foe)
+		EndIf
+		If IsPlayerDead() Then Return $FAIL
+		If TimerDiff($killTimer) > 30000 Then ExitLoop
+		$foesCount = CountFoesInRangeOfAgent(GetMyAgent(), $RANGE_EARSHOT, IsAbyssal)
+	WEnd
+	Sleep(500)
+	Info('Abyssals cleared. Picking up loot')
+	If IsPlayerAlive() Then PickUpItems(CastFowToCBuffs)
+	RandomSleep(500)
+
+	Info('Balling rangers')
+	If MoveAndSurviveFoWToC(-14200, -700) == $FAIL Then Return $FAIL
+	If MoveAndSurviveFoWToC(-13600, -1800) == $FAIL Then Return $FAIL
+	If MoveAndSurviveFoWToC(-14750, -2800) == $FAIL Then Return $FAIL
+	RandomSleep(2000)
+	If MoveAndSurviveFoWToC(-15150, -2950) == $FAIL Then Return $FAIL
+	While TimerDiff($whirlingDefenseTimer) < 60000
+		RandomSleep(2000)
+	WEnd
+
+	Info('Killing rangers')
+	; Longest bow range is around 1500
+	Local $target = GetFurthestNPCInRangeOfCoords($ID_ALLEGIANCE_FOE, Null, Null, $RANGE_SPELLCAST + 500)
+	Local $center = FindMiddleOfFoes(DllStructGetData($target, 'X'), DllStructGetData($target, 'Y'), $RANGE_EARSHOT)
+	CastFowToCBuffs()
+	GetAlmostInRangeOfAgent($target)
+	CastFowToCBuffs()
+	Local $skillLoopTimer1 = TimerInit()
+	While IsRecharged($FOW_TOC_DEATH_CHARGE)
+		If TimerDiff($skillLoopTimer1) > $SKILL_SPAM_TIMEOUT Then ExitLoop
+		UseSkillEx($FOW_TOC_DEATH_CHARGE, $target)
+		RandomSleep(100)
+		If IsPlayerDead() Then Return $FAIL
+	WEnd
+
+	Local $skillLoopTimer2 = TimerInit()
+	While Not IsRecharged($FOW_TOC_WHIRLING_DEFENSE)
+		If TimerDiff($skillLoopTimer2) > $SKILL_RECHARGE_WAIT_TIMEOUT Then ExitLoop
+		CastFowToCBuffs()
+		Move($center[0], $center[1])
+		RandomSleep(500)
+		If IsPlayerDead() Then Return $FAIL
+	WEnd
+
+	Move($center[0], $center[1])
+	UseSkillEx($FOW_TOC_WHIRLING_DEFENSE)
+	$killTimer = TimerInit()
+	$foesCount = 999
+	While $foesCount > 0
+		CastFowToCBuffs()
+		Sleep(500)
+		; If only 2 rangers left we can finish them by hand
+		If $foesCount > 0 And $foesCount < 3 Then
+			Local $foe = GetNearestEnemyToAgent(GetMyAgent(), $RANGE_SPELLCAST)
+			If DllStructGetData($foe, 'HealthPercent') < 0.3 Then Attack($foe)
+		EndIf
+		If IsPlayerDead() Then Return $FAIL
+		If TimerDiff($killTimer) > 30000 Then ExitLoop
+		$foesCount = CountFoesInRangeOfAgent(GetMyAgent(), $RANGE_EARSHOT)
+	WEnd
+	Info('Rangers cleared. Picking up loot')
+	Sleep(500)
+	PickUpItems(CastFowToCBuffs)
+	Return $SUCCESS
+EndFunc
+
+
+Func MoveAndSurviveFoWToC($destinationX, $destinationY)
+	CastFowToCBuffs()
+	If CheckStuck('FoW', $MAX_FOW_TOC_FARM_DURATION) == $FAIL Then Return $FAIL
+	Return MoveAvoidingBodyBlock($destinationX, $destinationY, $fow_toc_move_options)
+EndFunc
+
+
+Func CastFowToCBuffs()
+	; Emergency shadow step if health drops critically low
+	If IsRecharged($FOW_TOC_HEART_OF_SHADOW) And GetEnergy() >= 5 Then
+		Local $me = GetMyAgent()
+		If DllStructGetData($me, 'MaxHealth') * DllStructGetData($me, 'HealthPercent') < 100 Then
+			Local $foe = GetNearestEnemyToAgent($me, $RANGE_SPELLCAST)
+			If $foe <> Null Then UseSkillEx($FOW_TOC_HEART_OF_SHADOW, $foe)
+		EndIf
+	EndIf
+	If $fow_toc_30s_timer == Null Or TimerDiff($fow_toc_30s_timer) > 30000 Then
+		Debug('Casting all buffs')
+		; Since everything is casted together, no risk of interrupts
+		UseSkillEx($FOW_TOC_I_AM_UNSTOPPABLE)
+		If (GetIsKnocked(GetMyAgent())) Then Sleep(1750)
+		Sleep(250)
+		UseSkillEx($FOW_TOC_DWARVEN_STABILITY)
+		Sleep(250)
+		If (TimerDiff($run_timer) > 20000) And (GetEffectTimeRemaining(GetEffect($ID_MENTAL_BLOCK)) == 0) And (IsRecharged($FOW_TOC_MENTAL_BLOCK)) Then UseSkillEx($FOW_TOC_MENTAL_BLOCK)
+		$fow_toc_30s_timer = TimerInit()
+	EndIf
+	If IsRecharged($FOW_TOC_SHROUD_OF_DISTRESS) Then
+		Debug('Casting shroud')
+		Sleep(250)
+		UseSkillEx($FOW_TOC_SHROUD_OF_DISTRESS)
+	EndIf
+EndFunc
+
+
+Func HeroesCastFoWToCBuffs()
+	Local $myAgent = GetMyAgent()
+	CommandAll(-23300, -1300)
+	RandomSleep(1200)
+	UseHeroSkill(1, $FOW_TOC_DIVINE_SPIRIT)
+	UseHeroSkill(2, $FOW_TOC_VOCAL_WAS_SOGOLON)
+	RandomSleep(1200)
+	UseHeroSkill(1, $FOW_TOC_BLESSED_AURA)
+	UseHeroSkill(2, $FOW_TOC_ENDURING_HARMONY, $myAgent)
+	RandomSleep(2400)
+	UseHeroSkill(1, $FOW_TOC_SPELLBREAKER, $myAgent)
+	UseHeroSkill(2, $FOW_TOC_BRACE_YOURSELVES, $myAgent)
+	RandomSleep(1200)
+	UseHeroSkill(2, $FOW_TOC_STAND_YOUR_GROUND)
+	RandomSleep(50)
+	UseHeroSkill(2, $FOW_TOC_INCOMING)
+	RandomSleep(50)
+	UseHeroSkill(2, $FOW_TOC_BLADETURN_REFRAIN, $myAgent)
+EndFunc
+
+
+Func IsAbyssal($agent)
+	Return DllStructGetData($agent, 'ModelID') == $FOW_TOC_MODELID_ABYSSAL
+EndFunc

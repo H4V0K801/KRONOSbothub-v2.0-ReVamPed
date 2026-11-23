@@ -1,0 +1,208 @@
+#include '../LoadWaitHelpers.au3'
+#CS ===========================================================================
+; Author: Ian
+; Contributor: ----
+; Copyright 2025 caustic-kronos
+;
+; Licensed under the Apache License, Version 2.0 (the 'License');
+; you may not use this file except in compliance with the License.
+; You may obtain a copy of the License at
+; http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an 'AS IS' BASIS,
+; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+; See the License for the specific language governing permissions and
+; limitations under the License.
+#CE ===========================================================================
+
+#include-once
+#include '../../lib/GWA2_ID_Maps.au3'
+#include '../../lib/GWA2_ID_Quests.au3'
+#include '../../lib/GWA2.au3'
+#include '../../lib/Utils-Agents.au3'
+#include '../../lib/Utils-Console.au3'
+#include '../../lib/Utils-Storage.au3'
+#include '../../lib/Utils.au3'
+
+
+; ==== Constants ====
+Global Const $DELDRIMOR_FARM_INFORMATIONS = 'For best results, do not cheap out on heroes' & @CRLF _
+	& 'I recommend using a range build to avoid pulling extra groups in crowded rooms' & @CRLF _
+	& 'Recommend two healer heroes. Tested with BIP + SOS Healer.' & @CRLF _
+	& '10-15mn average in NM' & @CRLF _
+	& '15-20mn average in HM with cons (automatically used if HM is on)' & @CRLF _
+	& 'You must have already completed the 4 map pieces and at least one' & @CRLF _
+	& 'Manual run of the Dungeon Prior to running this script'
+
+Global Const $DELDRIMOR_FARM_DURATION = 20 * 60 * 1000
+
+Global Const $SNOWMAN_QUEST_ACCEPT_ID = 0x838201
+Global Const $SNOWMAN_READY_ID = 0x84
+Global Const $SNOWMAN_ACCEPT_REWARD = 0x838207
+
+Global $snowman_farm_setup = False
+
+Func DeldrimorFarm()
+	If Not $snowman_farm_setup And SetupDeldrimorTitleFarm() == $FAIL Then
+		Info('Snowman farm setup failed, stopping farm.')
+		Return $PAUSE
+	EndIf
+	MoveToLairSnowman()
+	AdlibRegister('TrackPartyStatus', 10000)
+	Local $result = FarmLairSnowman()
+	AdlibUnRegister('TrackPartyStatus')
+	DistrictTravel($ID_UMBRAL_GROTTO, $district_name)
+	Return $result
+EndFunc
+
+Func SetupDeldrimorTitleFarm()
+	DistrictTravel($ID_UMBRAL_GROTTO, $district_name)
+	SwitchToHardModeIfEnabled()
+
+	If IsQuestReward($ID_QUEST_LOST_TREASURE_OF_KING_HUNDAR) Then
+		Info('Quest Reward Found! Gathering Quest Reward')
+		MoveTo(-23886, 13881)
+		Local $questNPC = GetNearestNPCToCoords(-23886, 13881)
+		RandomSleep(750)
+		TakeQuestReward($questNPC, $ID_QUEST_LOST_TREASURE_OF_KING_HUNDAR, $SNOWMAN_ACCEPT_REWARD)
+		Info('Zoning to Olafsted to Refresh Quest')
+		DistrictTravel($ID_OLAFSTEAD, $district_name)
+		Sleep(750)
+		Info('Zoning back to Umbral')
+		DistrictTravel($ID_UMBRAL_GROTTO, $district_name)
+		RandomSleep(1000)
+	EndIf
+
+	If IsQuestNotFound($ID_QUEST_LOST_TREASURE_OF_KING_HUNDAR) Then
+		Info('Setting up Snowman Lair')
+		RandomSleep(750)
+		MoveTo(-23886, 13881)
+		Local $questNPC = GetNearestNPCToCoords(-23886, 13881)
+		TakeQuest($questNPC, $ID_QUEST_LOST_TREASURE_OF_KING_HUNDAR, $SNOWMAN_QUEST_ACCEPT_ID)
+	EndIf
+
+	If IsQuestActive($ID_QUEST_LOST_TREASURE_OF_KING_HUNDAR) Then
+		$snowman_farm_setup = True
+		Info('Quest in the logbook. Good to go!')
+		Return $SUCCESS
+	Else
+		Return $FAIL
+	EndIf
+EndFunc
+
+Func MoveToLairSnowman()
+	Info('Moving to Lair')
+	GoToNPC(GetNearestNPCToCoords(-23886, 13881))
+	RandomSleep(250)
+	Dialog(0x84)
+
+	RobustWaitMapLoading($ID_SNOWMEN_LAIR, 10000, 2000)
+EndFunc
+
+Func FarmLairSnowman()
+	If GetMapID() <> $ID_SNOWMEN_LAIR Then Return $FAIL
+	Info('Getting Blessing')
+	GoToNPC(GetNearestNPCToCoords(-14131, 15437))
+	RandomSleep(250)
+	Dialog(0x84)
+	RandomSleep(500)
+
+	If IsHardmodeEnabled() Then UseConset()
+	UseSummoningStone()
+
+	FlagMoveAggroAndKillInRange(-14610, 12352, 'First Snowmen Block')
+	FlagMoveAggroAndKillInRange(-16585, 8741, 'Second Snowmen Block')
+	MoveAggroAndKillInRange(-17949, 6797, 'Mopping up any snowmen')
+	Info('Time to avoid Snowballs')
+	RandomSleep(10000)
+
+	MoveAggroAndKillInRange(-19169, 5355, 'Lonely Snowmen 1')
+	MoveAggroAndKillInRange(-17196, 1934, 'Lots of Snowmen')
+
+	MoveAggroAndKillInRange(-15396, 2887, 'Bridge of Snowmen')
+	MoveAggroAndKillInRange(-14392, 3759, 'Over The Bridge of Snowmen')
+
+	Info('Get New Blessing')
+	MoveAggroAndKillInRange(-12482, 3924, 'Murder Over The Bridge of Snowmen')
+	GoToNPC(GetNearestNPCToCoords(-12482, 3924))
+	Info('Moving to Snowman Channel')
+	MoveTo(-14413, 2483)
+
+	MoveAggroAndKillInRange(-13464, -687, 'Channel of Snowmen')
+
+	Info('Wait to Heal after Ice Spouts')
+	RandomSleep(5000)
+	UseSummoningStone()
+
+	MoveAggroAndKillInRange(-12989, -731, 'Lonely Snowman 2')
+	MoveAggroAndKillInRange(-12802, -4446, 'Remainder of Snowmen')
+
+	Info('Wait to Heal after Ice Spouts')
+	RandomSleep(10000)
+	Info('Beware of Avalanches')
+
+	FlagMoveAggroAndKillInRange(-13176, -6779, 'Third Snowmen Block')
+	FlagMoveAggroAndKillInRange(-13676, -9799, 'Fourth Snowmen Block')
+
+	Info('Time To Get a Key')
+
+	MoveAggroAndKillInRange(-9646, -10924, 'Key of Snowmen')
+	PickUpItems()
+
+	Info('Get New Blessing')
+	MoveTo(-16005, -10679)
+	GoToNPC(GetNearestNPCToCoords(-16005, -10679))
+
+	Info('Time to open the door')
+	MoveAggroAndKillInRange(-15641, -11961, 'Door of Snowmen')
+	Info('Open dungeon door')
+	ClearTarget()
+	Sleep(2000)
+	; Doubled to secure bot
+	For $i = 1 To 2
+		MoveTo(-15483, -12236)
+		TargetNearestItem()
+		RandomSleep(500)
+		ActionInteract()
+		RandomSleep(500)
+	Next
+
+	MoveAggroAndKillInRange(-17345, -13797, 'Circle of Snowmen')
+
+	Info('Time for Freezie')
+	MoveTo(-14303, -17111)
+	FlagMoveAggroAndKillInRange(-13843, -17345, 'Freezie Snowmen Block')
+
+	Info('Pickup Key')
+	PickUpItems()
+	Info('Opening Boss door')
+	MoveTo(-11274, -17984)
+	Sleep(2000)
+	; Doubled to secure bot
+	For $i = 1 To 2
+		MoveTo(-11274, -17984)
+		TargetNearestItem()
+		RandomSleep(500)
+		ActionInteract()
+		RandomSleep(500)
+	Next
+
+	Info('Having a cry about beer')
+	MoveTo(-7770, -18740)
+	Info('Waiting to finish tears')
+	ClearTarget()
+	Sleep(70000)
+	; Doubled to try securing the looting
+	For $i = 1 To 2
+		MoveTo(-7770, -18740)
+		Info('Opening Wintersday chest')
+		TargetNearestItem()
+		ActionInteract()
+		RandomSleep(2500)
+		PickUpItems()
+	Next
+	$snowman_farm_setup = False
+	Return $SUCCESS
+
+EndFunc

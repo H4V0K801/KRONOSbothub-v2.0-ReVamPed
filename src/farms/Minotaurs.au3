@@ -1,0 +1,115 @@
+#CS ===========================================================================
+#include '../LoadWaitHelpers.au3'
+; Author: JackLinesMatthews
+; Contributor: Gahais
+; Copyright 2025 caustic-kronos
+;
+; Licensed under the Apache License, Version 2.0 (the 'License');
+; you may not use this file except in compliance with the License.
+; You may obtain a copy of the License at
+; http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an 'AS IS' BASIS,
+; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+; See the License for the specific language governing permissions and
+; limitations under the License.
+#CE ===========================================================================
+
+#include-once
+#include '../../lib/GWA2_ID_Maps.au3'
+#include '../../lib/GWA2_ID.au3'
+#include '../../lib/GWA2.au3'
+#include '../../lib/Utils-Console.au3'
+#include '../../lib/Utils-Storage.au3'
+#include '../../lib/Utils.au3'
+
+
+; ==== Constants ====
+Global Const $MINOTAURS_FARM_INFORMATIONS = 'For best results, have :' & @CRLF _
+	& '- a build that can be played from skill 1 to 8 easily (no combos or complicated builds)' & @CRLF _
+	& '- Solid heroes team composition, which can be loaded from GUI' & @CRLF _
+	& '' & @CRLF _
+	& 'This bot farms minotaur horns which can be salvaged for materials, or given to Nicholas the Traveler' & @CRLF
+; Average duration ~ 8m
+Global Const $MINOTAURS_FARM_DURATION = 8 * 60 * 1000
+
+Global $minotaurs_farm_setup = False
+
+
+;~ Main loop for the minotaurs farm
+Func MinotaursFarm()
+	If Not $minotaurs_farm_setup Then SetupMinotaursFarm()
+
+	If GoToProphetsPath() == $FAIL Then Return $FAIL
+	;ResetFailuresCounter()
+	;AdlibRegister('TrackPartyStatus', 10000)
+	Local $result = FarmMinotaurs()
+	;AdlibUnRegister('TrackPartyStatus')
+	Return $result
+EndFunc
+
+
+;~ Setup for the farm
+Func SetupMinotaursFarm()
+	Info('Setting up farm')
+	RobustTravelToOutpost($ID_AUGURY_ROCK, $district_name)
+	SwitchToHardModeIfEnabled()
+	If GetPartySize() <> $ID_TEAM_SIZE_MEDIUM Then
+		Error('Party not set up correctly. Team size different than ' & $ID_TEAM_SIZE_MEDIUM)
+		Return $FAIL
+	EndIf
+	$minotaurs_farm_setup = True
+	Info('Preparations complete')
+	Return $SUCCESS
+EndFunc
+
+
+;~ Move out of outpost into Prophets 'Path
+Func GoToProphetsPath()
+	RobustTravelToOutpost($ID_AUGURY_ROCK, $district_name)
+	Local $attempts = 0
+	While GetMapID() <> $ID_PROPHETS_PATH
+		If Not MapEntryAttemptAllowed($attempts, 'Prophets Path') Then Return $FAIL
+		Info('Moving to Prophets Path')
+		MoveTo(-17071, -1065)
+		MoveTo(-18069, -1026)
+		MoveTo(-18853, -444)
+		Move(-20100, -400)
+		RandomSleep(1000)
+		RobustWaitMapLoading($ID_PROPHETS_PATH, 10000, 2000)
+	WEnd
+	; v30: the map ID switches before the load completes - act only once it is fully loaded
+	If Not ConfirmMapReady($ID_PROPHETS_PATH) Then Return $FAIL
+	Return $SUCCESS
+EndFunc
+
+
+;~ Vanquish the minotaurs
+Func FarmMinotaurs()
+	If GetMapID() <> $ID_PROPHETS_PATH Then Return $FAIL
+
+	If IsHardmodeEnabled() Then UseConset()
+	UseSummoningStone()
+
+	; 12 groups to vanquish
+	Local Static $minotaurs[][] = [ _
+		[18870,		-6,		'Minotaurs group 1'		], _
+		[18828,		2201,	'Minotaurs group 2'		], _
+		[17106,		1459,	'Minotaurs group 3'		], _
+		[14424,		134,	'Minotaurs group 4'		], _
+		[10852,		1967,	'Minotaurs group 5'		], _
+		[10704,		6422,	'Minotaurs group 6'		], _
+		[9081,		7155,	'Minotaurs group 7'		], _
+		[8755,		10512,	'Minotaurs group 8'		], _
+		[12348,		10156,	'Minotaurs group 9'		], _
+		[7001,		8789,	'Minotaurs group 10'	], _
+		[5155,		8838,	'Minotaurs group 11'	], _
+		[2616,		7615,	'Minotaurs group 12'	] _
+	]
+	For $i = 0 To UBound($minotaurs) - 1
+		If CheckStuck($minotaurs[$i][2], 2 * $MINOTAURS_FARM_DURATION) == $FAIL Then Return $FAIL
+		If MoveAggroAndKillInRange($minotaurs[$i][0], $minotaurs[$i][1], $minotaurs[$i][2]) == $FAIL Then Return $FAIL
+	Next
+	Return $SUCCESS
+EndFunc

@@ -1,0 +1,692 @@
+#include '../LoadWaitHelpers.au3'
+#CS ===========================================================================
+; Author: TDawg
+; Contributor: Gahais
+; Copyright 2025 caustic-kronos
+;
+; Licensed under the Apache License, Version 2.0 (the 'License');
+; you may not use this file except in compliance with the License.
+; You may obtain a copy of the License at
+; http://www.apache.org/licenses/LICENSE-2.0
+;
+; Unless required by applicable law or agreed to in writing, software
+; distributed under the License is distributed on an 'AS IS' BASIS,
+; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+; See the License for the specific language governing permissions and
+; limitations under the License.
+#CE ===========================================================================
+
+#include-once
+#include '../../lib/GWA2_ID_Items.au3'
+#include '../../lib/GWA2_ID_Maps.au3'
+#include '../../lib/GWA2_ID_Quests.au3'
+#include '../../lib/GWA2_ID.au3'
+#include '../../lib/GWA2.au3'
+#include '../../lib/Utils-Agents.au3'
+#include '../../lib/Utils-Console.au3'
+#include '../../lib/Utils-Storage.au3'
+#include '../../lib/Utils.au3'
+
+
+; ==== Constants ====
+Global Const $FOW_FARM_INFORMATIONS = 'For best results, do not cheap out on heroes' & @CRLF _
+	& 'I recommend using a range build to avoid pulling extra groups in crowded areas' & @CRLF _
+	& 'XXmn average in NM' & @CRLF _
+	& 'YYmn average in HM with consets (automatically used if HM is on)' & @CRLF _
+	& 'If you add a summon to this farm, do it so that it despawned once at forest of the wailing lord'
+Global Const $FOW_FARM_DURATION = 75 * 60 * 1000
+
+Global Const $SHARD_WOLF_MODELID = 2835
+Global Const $ID_FOW_UNHOLY_TEXTS = 2619
+
+Global $fow_farm_setup = False
+
+
+;~ Main method to farm FoW
+Func FoWFarm()
+	If Not $fow_farm_setup Then SetupFoWFarm()
+	Local $result = EnterFissureOfWoe()
+	If $result <> $SUCCESS Then Return $result
+	$result = FoWFarmLoop()
+	If $result == $SUCCESS Then Info('Successfully cleared Fissure of Woe')
+	If $result == $FAIL Then Info('Could not clear Fissure of Woe')
+	TravelToFoWOutpost($district_name)
+	Return $result
+EndFunc
+
+
+;~ FoW farm setup
+Func SetupFoWFarm()
+	Info('Setting up farm')
+	TravelToFoWOutpost($district_name)
+	SwitchToHardModeIfEnabled()
+	$fow_farm_setup = True
+	Info('Preparations complete')
+	Return $SUCCESS
+EndFunc
+
+
+;~ Farm loop
+Func FoWFarmLoop()
+	If GetMapID() <> $ID_THE_FISSURE_OF_WOE Then Return $FAIL
+	ResetFailuresCounter()
+	AdlibRegister('TrackPartyStatus', 10000)
+	Local $result = FoWFarmProcess()
+	AdlibUnRegister('TrackPartyStatus')
+	Return $result
+EndFunc
+
+
+;~ Farm exact process - wrapper needed to be able to deregister adlib functions
+Func FoWFarmProcess()
+	UseSummoningStone($ID_LEGIONNAIRE_SUMMONING_CRYSTAL)
+	UseConset()
+	If TowerOfCourage() == $FAIL Then Return $FAIL
+	UseSummoningStone($ID_LEGIONNAIRE_SUMMONING_CRYSTAL)
+	UseConset()
+	If TheGreatBattleField() == $FAIL Then Return $FAIL
+	UseSummoningStone($ID_LEGIONNAIRE_SUMMONING_CRYSTAL)
+	UseConset()
+	If TheTempleOfWar() == $FAIL Then Return $FAIL
+	UseSummoningStone($ID_LEGIONNAIRE_SUMMONING_CRYSTAL)
+	UseConset()
+	If TheSpiderCaveAndFissureShore() == $FAIL Then Return $FAIL
+	UseSummoningStone($ID_LEGIONNAIRE_SUMMONING_CRYSTAL)
+	UseConset()
+	If LakeOfFire() == $FAIL Then Return $FAIL
+	UseConset()
+	If TowerOfStrength() == $FAIL Then Return $FAIL
+	UseConset()
+	If BurningForest() == $FAIL Then Return $FAIL
+	UseConset()
+	If ForestOfTheWailingLord() == $FAIL Then Return $FAIL
+	If GriffonRun() == $FAIL Then Return $FAIL
+	If TempleLoot() == $FAIL Then Return $FAIL
+	Return $SUCCESS
+EndFunc
+
+
+Func TowerOfCourage()
+	Info('Pre-clearing west of tower')
+	MoveAggroAndKill(-21000, 1500, '1')
+	MoveAggroAndKill(-19500, 1000, '2')
+	MoveAggroAndKill(-21000, 1500, '3')
+	MoveAggroAndKill(-22000, -2000, '4')
+	MoveAggroAndKill(-22000, -6000, '5')
+	MoveAggroAndKill(-20000, -6000, '6')
+	MoveAggroAndKill(-19000, -4000, '7')
+	MoveAggroAndKill(-17000, -5000, '8')
+	Info('Rastigan should start moving')
+	MoveAggroAndKill(-17000, -2500, '1')
+	MoveAggroAndKill(-14000, -3000, '2')
+	Info('Pre-clearing east of tower')
+	MoveAggroAndKill(-14000, -1000, '1')
+	MoveAggroAndKill(-15000, 0, '2')
+	MoveAggroAndKill(-14600, -2600, '3')
+	Info('Waiting for door to open')
+	Local $waitCount = 0
+	Local $me = GetMyAgent()
+	While GetDistanceToPoint($me, -15000, -2000) > $RANGE_ADJACENT
+		If $waitCount == 20 Then
+			Info('Rastigan is not moving, lets nudge him')
+			MoveAggroAndKill(-15500, -3500)
+			MoveAggroAndKill(-17000, -3000)
+			MoveAggroAndKill(-19000, -2100)
+			MoveAggroAndKill(-17000, -3000)
+			MoveAggroAndKill(-15500, -3500)
+			MoveAggroAndKill(-14600, -2600)
+			$waitCount = 0
+		EndIf
+		MoveTo(-15000, -2000)
+		Sleep(3000)
+		$waitCount += 1
+		$me = GetMyAgent()
+		If Not IsPlayerOrPartyAlive() Then Return $FAIL
+	WEnd
+	MoveAggroAndKill(-15500, -2000)
+
+	MoveTo(-15700, -1700)
+	Local $questNPC = GetNearestNPCToCoords(-15750, -1700)
+	TakeQuest($questNPC, $ID_QUEST_TOWER_OF_COURAGE, 0x80D401)
+	TakeQuestReward($questNPC, $ID_QUEST_TOWER_OF_COURAGE, 0x80D407)
+
+	TakeQuest($questNPC, $ID_QUEST_THE_WAILING_LORD, 0x80CC01)
+
+	Return IsPlayerOrPartyAlive() ? $SUCCESS : $FAIL
+EndFunc
+
+
+Func TheGreatBattleField()
+	Local $optionsTheGreatBattleField					= CloneMap($default_move_aggro_kill_options)
+	$optionsTheGreatBattleField['fightRange']			= $RANGE_EARSHOT
+	$optionsTheGreatBattleField['flagHeroesOnFight']	= True
+	Info('Heading to the Battlefield')
+	MoveAggroAndKill(-9500, -6000, '1')
+	FlagMoveAggroAndKill(-6300, 1700, '2', $optionsTheGreatBattleField)
+	FlagMoveAggroAndKill(-4700, 2900, '3', $optionsTheGreatBattleField)
+	FlagMoveAggroAndKill(-5000, 10000, '4', $optionsTheGreatBattleField)
+	FlagMoveAggroAndKill(-7000, 11400, '5', $optionsTheGreatBattleField)
+
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	MoveTo(-7326, 11892)
+	Local $questNPC = GetNearestNPCToCoords(-7400, 11950)
+	TakeQuest($questNPC, $ID_QUEST_ARMY_OF_DARKNESS, 0x80CB01)
+
+	Info('Getting Unholy Texts')
+	FlagMoveAggroAndKill(-1800, 14400, '1', $optionsTheGreatBattleField)
+	FlagMoveAggroAndKill(1500, 16600, '2', $optionsTheGreatBattleField)
+	MoveAggroAndKill(2800, 15900, '3')
+	MoveAggroAndKill(2400, 14650, '4')
+
+	PickUpUnholyTexts()
+	MoveTo(2100, 16500)
+	FlagMoveAggroAndKill(-3700, 13400, '5', $optionsTheGreatBattleField)
+	FlagMoveAggroAndKill(-6700, 11200, '6', $optionsTheGreatBattleField)
+
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	; We have to send dialog here because quest is not 'complete' in quest log
+	MoveTo(-7350, 11875)
+	GoToNPC($questNPC)
+	Sleep(1000)
+	Dialog(0x80CB07)
+	Sleep(1000)
+
+	$questNPC = GetNearestNPCToCoords(-7450, 11700)
+	TakeQuest($questNPC, $ID_QUEST_THE_ETERNAL_FORGEMASTER, 0x80D101)
+
+	Info('Heading to Forge')
+	FlagMoveAggroAndKill(-4400, 10900, '1')
+	FlagMoveAggroAndKill(700, 7600, '2')
+	Info('Sleeping for 20s')
+	Sleep(20000)
+	FlagMoveAggroAndKill(2800, 7900, '3')
+	FlagMoveAggroAndKill(700, 7600, '4')
+	MoveAggroAndKill(1400, 6100, '5')
+	Return IsPlayerOrPartyAlive() ? $SUCCESS : $FAIL
+EndFunc
+
+
+Func TheTempleOfWar()
+	Info('Clearing area')
+	MoveAggroAndKill(1800, 2100, '1')
+	MoveAggroAndKill(4300, 800, '2')
+	MoveAggroAndKill(4000, -1400, '3')
+	MoveAggroAndKill(2500, -2700, '4')
+	MoveAggroAndKill(1000, -2600, '5')
+	MoveAggroAndKill(-600, -1500, '6')
+	MoveAggroAndKill(-400, 800, '7')
+
+	Info('Clearing center')
+	MoveTo(300, 1300)
+	MoveAggroAndKill(1000, 500, '1')
+	MoveAggroAndKill(2000, 250, '2')
+	MoveAggroAndKill(2500, -300, '3')
+	MoveAggroAndKill(1850, -150, '4')
+
+	While Not IsQuestReward($ID_QUEST_THE_ETERNAL_FORGEMASTER)
+		Info('The Eternal Forgemaster quest is not finished yet')
+		Sleep(1000)
+		If Not IsPlayerOrPartyAlive() Then Return $FAIL
+	WEnd
+
+	Local $questNPC = GetNearestNPCToCoords(1850, -200)
+	TakeQuestReward($questNPC, $ID_QUEST_THE_ETERNAL_FORGEMASTER, 0x80D107)
+	TakeQuest($questNPC, $ID_QUEST_DEFEND_THE_TEMPLE_OF_WAR, 0x80CA01)
+
+	Info('Waiting the defense, feeling cute, might optimise later')
+	Info('Sleeping for 480s')
+	Sleep(480000)
+
+	$questNPC = GetNearestNPCToCoords(1850, -150)
+	TakeQuestReward($questNPC, $ID_QUEST_DEFEND_THE_TEMPLE_OF_WAR, 0x80CA07)
+	TakeQuest($questNPC, $ID_QUEST_RESTORE_THE_TEMPLE_OF_WAR, 0x80CF01, 0x80CF03)
+	TakeQuest($questNPC, $ID_QUEST_KHOBAY_THE_BETRAYER, 0x80E001, 0x80E003)
+	$questNPC = GetNearestNPCToCoords(150, -1950)
+	TakeQuest($questNPC, $ID_QUEST_TOWER_OF_STRENGTH, 0x80D301)
+	Return IsPlayerOrPartyAlive() ? $SUCCESS : $FAIL
+EndFunc
+
+
+Func TheSpiderCaveAndFissureShore()
+	Info('Going to Nimros')
+	MoveAggroAndKill(1800, -3700, '1')
+	MoveAggroAndKill(1800, -6900, '2')
+	Info('Sleeping for 30s')
+	Sleep(30000)
+	MoveAggroAndKill(2800, -9700, '3')
+	MoveAggroAndKill(1800, -12000, '4')
+	MoveAggroAndKill(1100, -13500, '5')
+
+	Local $questNPC = GetNearestNPCToCoords(3000, -14850)
+	TakeQuest($questNPC, $ID_QUEST_THE_HUNT, 0x80D001)
+
+	KillShardWolf()
+
+	Info('Clearing cave')
+	MoveAggroAndKill(1400, -11600, '1')
+	MoveAggroAndKill(-900, -9400, '2')
+	MoveAggroAndKill(-2500, -8500, '3')
+	MoveAggroAndKill(-4000, -9400, '4')
+	MoveAggroAndKill(-6100, -11400, '5')
+	MoveAggroAndKill(-7800, -13400, '6')
+	MoveAggroAndKill(-8400, -15800, '7')
+	MoveAggroAndKill(-8600, -17300, '8')
+
+	MoveAggroAndKill(-10000, -18500)
+	MoveAggroAndKill(-12900, -18000)
+	KillShardWolf()
+	MoveAggroAndKill(-13440, -15840)
+	KillShardWolf()
+	MoveAggroAndKill(-14800, -15600)
+	KillShardWolf()
+
+	Info('Going back')
+	MoveAggroAndKill(-11800, -18400, '1')
+	MoveAggroAndKill(-8800, -18200, '2')
+	MoveAggroAndKill(-8500, -16200, '3')
+
+	MoveTo(-6700, -11750)
+	MoveTo(-1600, -8750)
+	MoveTo(1000, -11200)
+	Return IsPlayerOrPartyAlive() ? $SUCCESS : $FAIL
+EndFunc
+
+
+Func LakeOfFire()
+	Info('Khobay murder time')
+	MoveAggroAndKill(4500, -9800, '1')
+	MoveAggroAndKill(7350, -11250, '2')
+	MoveAggroAndKill(9600, -8500, '3')
+	MoveAggroAndKill(15250, -9500, '4')
+	MoveAggroAndKillInRange(20500, -8100, '5', $RANGE_EARSHOT)
+	MoveAggroAndKillInRange(20500, -12400, '6', $RANGE_EARSHOT)
+	MoveAggroAndKillInRange(18300, -14000, '7', $RANGE_EARSHOT)
+	MoveAggroAndKillInRange(19500, -15000, '8', $RANGE_LONGBOW)
+	Return IsPlayerOrPartyAlive() ? $SUCCESS : $FAIL
+EndFunc
+
+
+Func TowerOfStrength()
+	Local $optionsTowerOfStrength			= CloneMap($default_move_aggro_kill_options)
+	$optionsTowerOfStrength['fightRange']	= $RANGE_EARSHOT
+	Info('Clearing area of Tower of Strength')
+	MoveTo(18300, -14000)
+	MoveTo(20500, -12400)
+	MoveTo(20500, -8100)
+	MoveTo(15250, -9500)
+	MoveTo(9600, -8500)
+	MoveAggroAndKill(11500, -4600, '1')
+	FlagMoveAggroAndKill(15000, -3100, '2', $optionsTowerOfStrength)
+	FlagMoveAggroAndKill(15800, -300, '3', $optionsTowerOfStrength)
+	MoveAggroAndKill(17600, 2200, '4')
+	MoveAggroAndKill(15000, 1000, '5')
+	MoveAggroAndKill(13000, 500, '6', $optionsTowerOfStrength)
+	KillShardWolf()
+	MoveAggroAndKill(12000, 0, '7', $optionsTowerOfStrength)
+	KillShardWolf()
+	MoveAggroAndKill(15000, -1000, '8')
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	Info('Going back for Mage')
+	MoveAggroAndKill(10300, -5900, '1')
+	MoveAggroAndKill(6500, -11200, '2')
+	MoveAggroAndKill(1600, -7200, '3')
+
+	Info('And back to tower')
+	MoveAggroAndKill(6500, -12000, '1')
+	MoveAggroAndKill(10300, -5900, '2')
+	MoveAggroAndKill(15400, -1400, '3')
+	; Entering the tower guarantees that the npc arrived
+	Local $me = GetMyAgent()
+	While GetDistanceToPoint($me, 16700, -1700) > $RANGE_NEARBY
+		MoveTo(16700, -1700)
+		Sleep(1000)
+		$me = GetMyAgent()
+		If Not IsPlayerOrPartyAlive() Then Return $FAIL
+	WEnd
+	Return $SUCCESS
+EndFunc
+
+
+Func BurningForest()
+	Local $optionsBurningForest					= CloneMap($default_move_aggro_kill_options)
+	$optionsBurningForest['fightRange']			= $RANGE_LONGBOW
+	$optionsBurningForest['flagHeroesOnFight']	= True
+	Info('Heading to Burning Forest')
+	MoveAggroAndKill(15200, -1100, '1')
+	MoveAggroAndKill(17400, 3300, '2')
+	MoveAggroAndKill(14100, 4000, '3')
+	MoveAggroAndKill(12100, 6750, '4')
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	MoveTo(12000, 6600)
+	Local $questNPC = GetNearestNPCToCoords(12050, 6500)
+	TakeQuest($questNPC, $ID_QUEST_SLAVES_OF_MENZIES, 0x80CE01)
+
+	Info('Clearing Burning Forest')
+	MoveAggroAndKill(12600, 8000, 'Safety Pull 1', $optionsBurningForest)
+	FlagMoveAggroAndKill(12000, 6600, '', $optionsBurningForest)
+	RandomSleep(2500)
+	MoveAggroAndKill(12600, 8000, 'Safety Pull 2', $optionsBurningForest)
+	FlagMoveAggroAndKill(12000, 6600, '', $optionsBurningForest)
+	RandomSleep(2500)
+	MoveAggroAndKill(12600, 8000, 'Safety Pull 3', $optionsBurningForest)
+	FlagMoveAggroAndKill(12000, 6600, '', $optionsBurningForest)
+	RandomSleep(2500)
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	FlagMoveAggroAndKill(13090, 7580, '1', $optionsBurningForest)
+	FlagMoveAggroAndKill(14800, 8500, '2', $optionsBurningForest)
+
+	$optionsBurningForest['fightRange'] = $RANGE_EARSHOT
+	FlagMoveAggroAndKill(16500, 9100, '3', $optionsBurningForest)
+	FlagMoveAggroAndKill(19000, 8400, '4', $optionsBurningForest)
+	FlagMoveAggroAndKill(20800, 8500, '5', $optionsBurningForest)
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	FlagMoveAggroAndKill(21700, 12600, '6', $optionsBurningForest)
+	FlagMoveAggroAndKill(23000, 13100, '7', $optionsBurningForest)
+	FlagMoveAggroAndKill(22880, 15000, '8', $optionsBurningForest)
+	FlagMoveAggroAndKill(22200, 15800, '9', $optionsBurningForest)
+	FlagMoveAggroAndKill(20900, 15900, '10', $optionsBurningForest)
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	FlagMoveAggroAndKill(21240, 14530, '11', $optionsBurningForest)
+	FlagMoveAggroAndKill(21700, 12600, '12', $optionsBurningForest)
+	KillShardWolf()
+	FlagMoveAggroAndKill(19800, 11900, '13', $optionsBurningForest)
+	KillShardWolf()
+	FlagMoveAggroAndKill(18900, 12880, '14', $optionsBurningForest)
+	KillShardWolf()
+	FlagMoveAggroAndKill(17150, 12000, '15', $optionsBurningForest)
+	KillShardWolf()
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	FlagMoveAggroAndKill(16200, 11000, '16', $optionsBurningForest)
+	FlagMoveAggroAndKill(14800, 8500, '17', $optionsBurningForest)
+	FlagMoveAggroAndKill(13000, 7700, '18', $optionsBurningForest)
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	MoveTo(12000, 6600)
+	TakeQuestReward($questNPC, $ID_QUEST_SLAVES_OF_MENZIES, 0x80CE07)
+
+	Info('Heading to Forest of the Wailing Lords')
+	MoveAggroAndKill(9200, 12500, '1')
+	MoveAggroAndKill(1600, 12300, '2')
+	KillShardWolf()
+	MoveAggroAndKill(-3250, 12160, '3')
+	KillShardWolf()
+	FlagMoveAggroAndKill(-5180, 8820, '4', $optionsBurningForest)
+	FlagMoveAggroAndKill(-10750, 6300, '5', $optionsBurningForest)
+	Return IsPlayerOrPartyAlive() ? $SUCCESS : $FAIL
+EndFunc
+
+
+Func ForestOfTheWailingLord()
+	Local $optionsForestOfTheWailingLord			= CloneMap($default_move_aggro_kill_options)
+	$optionsForestOfTheWailingLord['fightRange']	= $RANGE_LONGBOW
+	Info('Clearing forest')
+	MoveAggroAndKill(-17500, 9750, '1')
+	MoveAggroAndKill(-20200, 9500, '2', $optionsForestOfTheWailingLord)
+
+	$optionsForestOfTheWailingLord['fightRange']	= $RANGE_EARSHOT
+	MoveAggroAndKill(-22000, 11000, '3', $optionsForestOfTheWailingLord)
+	MoveAggroAndKill(-20000, 13000, '4', $optionsForestOfTheWailingLord)
+
+	$optionsForestOfTheWailingLord['fightRange']	= $RANGE_EARSHOT * 1.1
+	MoveAggroAndKill(-18000, 15000, '5')
+	MoveAggroAndKill(-18000, 14000, '6', $optionsForestOfTheWailingLord)
+	KillShardWolf()
+	MoveAggroAndKill(-16300, 12000, '7')
+	KillShardWolf()
+	MoveAggroAndKill(-15400, 11950, '8')
+	KillShardWolf()
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	$optionsForestOfTheWailingLord['fightRange']	= $RANGE_EARSHOT
+	MoveAggroAndKill(-16160, 13325, '9', $optionsForestOfTheWailingLord)
+	MoveAggroAndKill(-16000, 13500, '10', $optionsForestOfTheWailingLord)
+	; Safer moves
+	MoveAggroAndKill(-20000, 13000, '11', $optionsForestOfTheWailingLord)
+	MoveAggroAndKill(-18000, 11000, '12', $optionsForestOfTheWailingLord)
+	MoveAggroAndKill(-20200, 14000, '13', $optionsForestOfTheWailingLord)
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+	Info('Safely pulling')
+	CommandHero(1, -20200, 13600)
+	CommandHero(2, -19900, 14000)
+	CommandHero(3, -20400, 13500)
+	CommandHero(4, -19900, 14250)
+	CommandHero(5, -20000, 13800)
+	CommandHero(6, -19750, 13800)
+	CommandHero(7, -19900, 13600)
+
+	Local $questLoopCount = 0
+	While Not IsQuestReward($ID_QUEST_THE_WAILING_LORD)
+		; Pull Skeletal Mobs
+		If $questLoopCount < 2 Then
+			MoveTo(-21000, 14600)
+			Sleep(3000)
+			MoveTo(-20500, 14200)
+			Sleep(17000)
+		; Go Deeper to pull the Banshees
+		Else
+			MoveTo(-21500, 15000)
+			Sleep(3000)
+			MoveTo(-20500, 14200)
+			Sleep(12000)
+		EndIf
+		$questLoopCount += 1
+		If Not IsPlayerOrPartyAlive() Then Return $FAIL
+	WEnd
+	CancelAllHeroes()
+
+	; Just in case there are mobs left over
+	MoveAggroAndKill(-20200, 14000, 'Cleanup 1')
+	MoveAggroAndKill(-21500, 15000, 'Cleanup 2')
+	PickUpItems()
+
+	Info('Looting quest chest')
+	MoveTo(-21500, 15400)
+	CommandAll(-17700, 10330)
+	Sleep(20000)
+	TargetNearestItem()
+	ActionInteract()
+	Sleep(2500)
+	PickUpItems()
+	CancelAll()
+
+	Return IsPlayerOrPartyAlive() ? $SUCCESS : $FAIL
+EndFunc
+
+
+Func GriffonRun()
+	Info('Preclearing area for griffons')
+	MoveAggroAndKill(-22000, 11000, 'Grabbing Griffons')
+	MoveAggroAndKill(-17300, 9600, '1')
+	MoveAggroAndKill(-16500, 8500, '2')
+	MoveAggroAndKill(-7500, 5000, '3')
+	MoveAggroAndKill(-6750, -4250, '4')
+	MoveAggroAndKill(-9500, -6000, '5')
+	MoveAggroAndKill(-13750, -2750, '6')
+	MoveAggroAndKill(-15750, -1750, '7')
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+	RandomSleep(5000)
+
+	Info('Kill Last Shard Wolf')
+	MoveAggroAndKill(-14430, -2750, '8')
+	MoveAggroAndKill(-18000, -3500, '9')
+	KillShardWolf()
+	MoveAggroAndKill(-17600, -4800, '10')
+	KillShardWolf()
+	MoveAggroAndKill(-16575, -5200, '11')
+	KillShardWolf()
+	MoveAggroAndKill(-18000, -3500)
+	MoveAggroAndKill(-13750, -2750)
+	CommandAll(-9800, -4800)
+	MoveAggroAndKill(-15750, -1750)
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+
+
+	Info('Grabbing griffons')
+	MoveAggroAndKill(-13750, -2750, '1')
+	MoveAggroAndKill(-9500, -6000, '2')
+	MoveAggroAndKill(-6750, -4250, '3')
+	MoveAggroAndKill(-7500, 5000, '4')
+	MoveAggroAndKill(-18250, 9500, '5')
+	MoveAggroAndKill(-20000, 9500, '6')
+
+	Info('Picking up quest')
+	MoveTo(-21500, 15000)
+	Local $questNPC = GetNearestNPCToCoords(-21600, 15050)
+	TakeQuest($questNPC, $ID_QUEST_A_GIFT_OF_GRIFFONS, 0x80CD01)
+
+	MoveAggroAndKill(-22000, 11000, '7')
+	RandomSleep(1000)
+
+	Info('Leading griffons back')
+	MoveAggroAndKill(-17300, 9600, '1')
+	MoveAggroAndKill(-16500, 8500, '2')
+	MoveAggroAndKill(-7500, 5000, '3')
+	MoveAggroAndKill(-6750, -4250, '4')
+	MoveAggroAndKill(-9500, -6000, '5')
+	MoveAggroAndKill(-13750, -2750, '6')
+	MoveAggroAndKill(-15750, -1750, '7')
+	If Not IsPlayerOrPartyAlive() Then Return $FAIL
+	RandomSleep(5000)
+
+	If Not IsRunFailed() And Not IsQuestReward($ID_QUEST_THE_HUNT) Then
+		Info('Quest: The Hunt, not finished. Checking for Shard Wolf.')
+		MoveAggroAndKill(-14430, -2750, '8')
+		MoveAggroAndKill(-18000, -3500, '9')
+		KillShardWolf()
+		MoveAggroAndKill(-17600, -4800, '10')
+		KillShardWolf()
+		MoveAggroAndKill(-16575, -5200, '11')
+		KillShardWolf()
+		MoveAggroAndKill(-18000, -3500)
+		MoveAggroAndKill(-13750, -2750)
+		CommandAll(-9800, -4800)
+		MoveAggroAndKill(-15750, -1750)
+		RandomSleep(5000)
+	EndIf
+
+	Local $questNPC = GetNearestNPCToCoords(-15750, -1700)
+	TakeQuestReward($questNPC, $ID_QUEST_THE_WAILING_LORD, 0x80CC07, 0x80CC06)
+	TakeQuestReward($questNPC, $ID_QUEST_A_GIFT_OF_GRIFFONS, 0x80CD07)
+
+	Info('Looting quest chest')
+	MoveTo(-15650, -1860)
+	Sleep(5000)
+	TargetNearestItem()
+	ActionInteract()
+	Sleep(2500)
+	PickUpItems()
+	CancelAll()
+
+	Return IsPlayerOrPartyAlive() ? $SUCCESS : $FAIL
+EndFunc
+
+
+Func TempleLoot()
+	Local $optionsTempleLoot = CloneMap($default_move_aggro_kill_options)
+	$optionsTempleLoot['fightRange'] = $RANGE_EARSHOT * 2
+	MoveAggroAndKill(-9800, -4800)
+	MoveAggroAndKill(-6800, -3800)
+	MoveAggroAndKill(-8000, 5100)
+	If Not IsRunFailed() And Not IsQuestReward($ID_QUEST_THE_HUNT) Then
+		Info('The Hunt is not complete.')
+		Info('Let us make sure we got wolf in the battlefield')
+		MoveAggroAndKill(-5066, 11490, '', $optionsTempleLoot)
+		KillShardWolf()
+		MoveAggroAndKill(-3455, 14190, '', $optionsTempleLoot)
+		KillShardWolf()
+		MoveAggroAndKill(-1310, 14520, '', $optionsTempleLoot)
+		KillShardWolf()
+		MoveAggroAndKill(-685, 10980, '', $optionsTempleLoot)
+		KillShardWolf()
+	EndIf
+	MoveAggroAndKill(1550, 5200)
+	MoveAggroAndKill(1700, 2400)
+	; TODO: Add The Hunt Check again for Burning Forest as it is another area that can get missed
+	CommandAll(1500, 7360)
+	MoveTo(1585, -520)
+
+	Info('Looting quest chest')
+	TargetNearestItem()
+	ActionInteract()
+	Sleep(2500)
+	PickUpItems()
+	CancelAll()
+
+	Info('Opening mission chest')
+	For $i = 1 To 3
+		MoveTo(1800, 400)
+		RandomSleep(5000)
+		TargetNearestItem()
+		ActionInteract()
+		RandomSleep(2500)
+		PickUpItems()
+	Next
+
+	Local $questNPC = GetNearestNPCToCoords(1850, -200)
+	TakeQuestReward($questNPC, $ID_QUEST_RESTORE_THE_TEMPLE_OF_WAR, 0x80CF07, 0x80CF06)
+	TakeQuestReward($questNPC, $ID_QUEST_KHOBAY_THE_BETRAYER, 0x80E007, 0x80E006)
+
+	$questNPC = GetNearestNPCToCoords(200, -1900)
+	TakeQuestReward($questNPC, $ID_QUEST_TOWER_OF_STRENGTH, 0x80D307)
+
+	Return IsPlayerOrPartyAlive() ? $SUCCESS : $FAIL
+EndFunc
+
+
+;~ Pick up the Unholy Texts
+Func PickUpUnholyTexts()
+	Local $agents = GetAgentArray($ID_AGENT_TYPE_ITEM)
+	For $agent In $agents
+		Local $agentID = DllStructGetData($agent, 'ID')
+		Local $item = GetItemByAgentID($agentID)
+		If (DllStructGetData($item, 'ModelID') == $ID_FOW_UNHOLY_TEXTS) Then
+			Info('Unholy Texts: (' & Round(DllStructGetData($agent, 'X')) & ', ' & Round(DllStructGetData($agent, 'Y')) & ')')
+			Local $attemptPlaces[] = [2300, 14700, 1800, 16500, 4400, 15800, 1900, 13800]
+			For $attempt = 0 To 4
+				PickUpItem($item)
+				Local $waitCycles = 0
+				While $waitCycles < 10
+					RandomSleep(1000)
+					$waitCycles += 1
+					If Not IsPlayerOrPartyAlive() Then Return False
+					If Not GetAgentExists($agentID) Then Return True
+				WEnd
+				Error('Attempt ' & $attempt & ' - could not get Unholy Texts at (' & DllStructGetData($agent, 'X') & ', ' & DllStructGetData($agent, 'Y') & ')')
+				If $attempt < 4 Then MoveTo($attemptPlaces[2 * $attempt], $attemptPlaces[2 * $attempt + 1])
+			Next
+			Error('All attempts failed, skipping Unholy Texts quest')
+			Return False
+		EndIf
+	Next
+	Error('Could not find Unholy Texts on the ground')
+	Return False
+EndFunc
+
+
+;~ Return true if agent is a shardwolf
+Func IsShardWolf($agent)
+	Return DllStructGetData($agent, 'ModelID') == $SHARD_WOLF_MODELID
+EndFunc
+
+
+;~ Kill shardwolf if found
+Func KillShardWolf()
+	Local $foes = GetFoesInRangeOfAgent(GetMyAgent(), $RANGE_COMPASS, IsShardWolf)
+	While IsArray($foes) And UBound($foes) > 0
+		Local $shardWolf = $foes[0]
+		Local $wolfX = DllStructGetData($shardWolf, 'X')
+		Local $wolfY = DllStructGetData($shardWolf, 'Y')
+		MoveAggroAndKillInRange($wolfX, $wolfY, '', $RANGE_COMPASS)
+		$foes = GetFoesInRangeOfAgent(GetMyAgent(), $RANGE_COMPASS, IsShardWolf)
+	WEnd
+	Return $SUCCESS
+EndFunc
